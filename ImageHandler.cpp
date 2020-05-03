@@ -10,7 +10,7 @@
 #define EYE_GLASSES_MODEL	"../opencv-data/haarcascades/haarcascade_eye_tree_eyeglasses.xml"
 #define EYE_MODEL	"../opencv-data/haarcascade_eye.xml"
 #define FACEPHOTO_FACENAME  "./image/result.jpg"
-#define DETECT_IMAGE		"../imgs/眼镜1.jpeg"
+#define DETECT_IMAGE		"../imgs/wk2.jpeg"
 
 
 class  ImageHandler {
@@ -107,6 +107,7 @@ class  ImageHandler {
     }
 
     void showImg(cv::Mat m) {
+        printf("---------------开始----------------\n");
         int mm = m.rows;
         int nn = m.cols;
         int i,j;
@@ -116,7 +117,7 @@ class  ImageHandler {
             }
             printf("\n");
         }
-        printf("end\n");
+        printf("---------------结束----------------\n");
     }
 
     void detectAndDraw( cv::Mat& img, cv::CascadeClassifier& cascade,
@@ -163,8 +164,8 @@ class  ImageHandler {
             Size(30, 30) 目标的最大最小尺寸
         */
         cascade.detectMultiScale( smallImg, faces, 1.1, 2, cv::CASCADE_SCALE_IMAGE, cv::Size(30, 30) );
-        if( tryflip )
-        {
+
+        if( tryflip ){
             flip(smallImg, smallImg, 1);
             cascade.detectMultiScale( smallImg, faces2,1.1, 2, 0|cv::CASCADE_SCALE_IMAGE,cv::Size(30, 30) );
             for( std::vector<cv::Rect>::const_iterator r = faces2.begin(); r != faces2.end(); ++r )
@@ -176,34 +177,15 @@ class  ImageHandler {
         /* 相减为算法执行的时间 */
         t = (double)cv::getTickCount() - t;
         printf( "detection time = %g ms\n", t*1000 / cv::getTickFrequency());
+        printf("识别出人脸的数量为：%d \n", faces.size());
 
         for ( size_t i = 0; i < faces.size(); i++ ){
             cv::Rect r = faces[i];
             cv::Mat smallImgROI;
             std::vector<cv::Rect> nestedObjects;
-            cv::Point center;
             cv::Scalar color = colors[i%8];
-            int radius;
 
             printf("检测到的人脸范围是：%d, %d, %d, %d \n", r.x, r.y, r.width, r.height);
-
-            /* 人脸长宽比例，在0.75-1.3 间画圆，其他范围画矩形 */
-            double aspect_ratio = (double)r.width/r.height;
-           /* if( 0.75 < aspect_ratio && aspect_ratio < 1.3 )
-            {
-                *//*还原原来尺寸 计算圆心和圆半径 *//*
-                center.x = cvRound((r.x + r.width*0.5)*scale);
-                center.y = cvRound((r.y + r.height*0.5)*scale);
-                radius = cvRound((r.width + r.height)*0.25*scale);
-                *//* 画出人脸检测区域 画圆 *//*
-                circle( img, center, radius, color, 3, 8, 0 );
-            }
-            else
-            {
-                *//* 画出检测区域，画矩形 *//*
-                rectangle( img, cv::Point(cvRound(r.x*scale), cvRound(r.y*scale)),
-                           cv::Point(cvRound((r.x + r.width-1)*scale), cvRound((r.y + r.height-1)*scale)), color, 3, 8, 0);
-            }*/
             rectangle( img, cv::Point(cvRound(r.x*scale), cvRound(r.y*scale)),
                        cv::Point(cvRound((r.x + r.width-1)*scale), cvRound((r.y + r.height-1)*scale)), color, 3, 8, 0);
 
@@ -215,38 +197,241 @@ class  ImageHandler {
             smallImgROI = smallImg( r );
 
             /* 人眼检测 */
-            nestedCascade.detectMultiScale( smallImgROI, nestedObjects, 1.1, 2, cv::CASCADE_SCALE_IMAGE, cv::Size(30, 30) );
-            printf("识别出来的眼睛数量为：%d", nestedObjects.size());
-            if (nestedObjects.size() != 2) {
-                printf("眼部检测不合格");
+            nestedCascade.detectMultiScale( smallImgROI, nestedObjects, 1.1, 3, cv::CASCADE_SCALE_IMAGE, cv::Size(30, 30) );
+            printf("识别出来的眼睛数量为：%d \n", nestedObjects.size());
+            if (nestedObjects.size() < 2) {
+                printf("眼部检测不合格 \n");
                 continue;
             }
-            cv::Rect eye1 = nestedObjects[0];
-            cv::Rect eye2 = nestedObjects[1];
-
+            cv::Rect eye1Small = nestedObjects[0].x < nestedObjects[1].x ? nestedObjects[0] : nestedObjects[1];
+            cv::Rect eye2Small = nestedObjects[0].x >= nestedObjects[1].x ? nestedObjects[0] : nestedObjects[1];
+            cv::Rect eye1((r.x + eye1Small.x) * scale, (r.y + eye1Small.y) * scale, eye1Small.width * scale, eye1Small.height * scale);
+            cv::Rect eye2((r.x + eye2Small.x) * scale, (r.y + eye2Small.y) * scale, eye2Small.width * scale, eye2Small.height * scale);
 
             for ( size_t j = 0; j < nestedObjects.size(); j++ ){
                 cv::Rect nr = nestedObjects[j];
-                printf("检测到的人眼睛范围是：%d, %d, %d, %d \n", nr.x, nr.y, nr.width, nr.height);
-                /*还原原来尺寸 计算圆心和圆半径 */
-                center.x = cvRound((r.x + nr.x + nr.width*0.5)*scale);
-                center.y = cvRound((r.y + nr.y + nr.height*0.5)*scale);
-                radius = cvRound((nr.width + nr.height)*0.25*scale);
-                /* 画出人眼检测区域 画圆*/
-                circle( img, center, radius, color, 3, 8, 0 );
-
-               rectangle(img, cv::Point(cvRound(nr.x*scale), cvRound(nr.y*scale)),
-                          cv::Point(cvRound((nr.x + nr.width-1)*scale), cvRound((nr.y + nr.height-1)*scale)), color, 3, 8, 0);
+                cv::Rect eye((r.x + nr.x) * scale, (r.y + nr.y) * scale, nr.width * scale, nr.height * scale);
+                printf("检测到的人眼睛范围是：%d, %d, %d, %d \n", eye.x, eye.y, eye.width, eye.height);
+                rectangle(img, eye, color, 3, 8, 0);
             }
+            glassCheck1(eye1, eye2, img, scale, r);
+
+            //glassCheck2(eye1, eye2, img, scale, r);
+
         }
         /* 显示图像 img */
         imshow( "result", img );
     }
 
+    int glassCheck1(cv::Rect eye1, cv::Rect eye2, cv::Mat img, int scale, cv::Rect r) {
+        printf("开始对镜框检测\n");
+        cv::Scalar color(255,255,0);
+        cv::Point center;
+
+        printf("第1步：获取双眼中间的区域 \n");
+
+        cv::Rect centerRect( eye1.x + eye1.width ,  cv::min( eye1.y, eye2.y),
+                eye2.x - eye1.x - eye1.width, cv::max(eye2.y + eye2.height - eye1.y, eye1.y + eye1.height - eye2.y));   //双眼中间的区域
+        printf("检测到的双眼中间区域是：%d, %d, %d, %d \n", centerRect.x, centerRect.y, centerRect.width, centerRect.height);
+        rectangle(img, centerRect, color, 3, 8, 0);
+
+        printf("第2步：灰化压缩图片 \n");
+        cv::Mat centerImg = img(centerRect);
+       // showImg(centerImg);
+        cv::Mat gray;
+
+        cvtColor( centerImg, gray, cv::COLOR_BGR2GRAY );
+        cv::imshow("center_gray", gray);
+        //showImg(gray);
+        //压缩图片
+        cv::Mat comImg = compressImg(gray, 16, 16);
+
+        printf("第3步：计算图像的方差 \n");
+        //double aver = getImgAver(gray);
+
+        //printf("图片的平均值为：%d \n", aver);
+        //cv::Mat simpleImg;
+        //cv::threshold(comImg, simpleImg, aver, 1, cv::THRESH_BINARY_INV);
+        showImg(comImg);
+
+        //对图片进行方差计算，方差越大说明像素的离散度越大，则有眼镜或者
+
+        double var = getImgVar(comImg);
+        printf("该区域的方差为 %f \n", var);
+
+        double ranges = pow((getImgRange(comImg)/2), 2);
+        printf("该区域最大的离散值为%f \n", ranges);
+        printf("var/ranges: %f", var/ranges);
+
+        /*cv::Point2f srcTri[] = {
+                cv::Point2f (eye1.x, eye1.y),
+                cv::Point2f (eye2.x + eye2.width , eye1.y),
+                cv::Point2f (eye1.x , eye1.y + eye1.height)
+        };
+
+        cv::Point2f dstTri[] = {
+                cv::Point2f (eye1.x, eye1.y),
+                cv::Point2f (eye2.x + eye2.width , eye2.y),
+                cv::Point2f (eye1.x , eye1.y + eye1.height)
+        };*/
+    }
+
+    int glassCheck2(cv::Rect eye1, cv::Rect eye2, cv::Mat img, int scale, cv::Rect r) {
+        printf("开始对镜框检测\n");
+        cv::Scalar color(255,255,0);
+        cv::Point center;
+
+        printf("第1步：获取双眼中间的区域 \n");
+
+        cv::Rect centerRect( eye1.x + eye1.width ,  cv::min( eye1.y, eye2.y),
+                             eye2.x - eye1.x - eye1.width, cv::max(eye2.y + eye2.height - eye1.y, eye1.y + eye1.height - eye2.y));   //双眼中间的区域
+        printf("检测到的双眼中间区域是：%d, %d, %d, %d \n", centerRect.x, centerRect.y, centerRect.width, centerRect.height);
+        rectangle(img, centerRect, color, 3, 8, 0);
+
+        printf("第2步：灰化压缩图片 \n");
+        cv::Mat centerImg = img(centerRect);
+        // showImg(centerImg);
+        cv::Mat gray;
+        cvtColor( centerImg, gray, cv::COLOR_BGR2GRAY );
+        cv::imshow("center_gray", gray);
+
+        cv::Mat comImg = compressImg(gray, 16, 16);
+        cv::Mat different = differentImg(comImg);
+
+        showImg(different);
+
+       // cv::Mat sobelImg;
+       // cv::Sobel(gray, sobelImg, CV_32F, 0, 1, 15, 1, 0, cv::BORDER_DEFAULT);
+
+        //压缩图片
+      //  cv::Mat comImg = compressImg(sobelImg, 16, 16);
+
+        //cv::imshow("comImg", comImg);
+        //
+     //   showImg(comImg);
+    //    printf("第3步：计算图像的方差 \n");
+        //double aver = getImgAver(gray);
+
+        //printf("图片的平均值为：%d \n", aver);
+        //cv::Mat simpleImg;
+        //cv::threshold(comImg, simpleImg, aver, 1, cv::THRESH_BINARY_INV);
+      //  showImg(comImg);
+
+        //对图片进行方差计算，方差越大说明像素的离散度越大，则有眼镜或者
+
+        double var = getImgVar(different);
+        printf("该区域的方差为 %f \n", var);
+
+        double ranges = pow((getImgRange(different)/2), 2);
+        printf("该区域最大的离散值为%f \n", ranges);
+        printf("var/ranges: %f", var/ranges);
+
+        return 0;
+    }
+
+    cv::Mat differentImg(cv::Mat img) {
+        double pi = 3.1415;
+        double aver = getImgAver(img);
+        int range = getImgRange(img);
+        cv::Mat different(img.rows, img.cols, img.type());
+        int mm = img.rows, nn = img.cols;
+
+        for (int i=0; i< mm; i++) {
+            for (int j = 0; j < nn; j++) {
+                double a = img.at<int>(i, j) - aver;
+                //内聚一下，提取出差值较大的特征
+                double sina  = sin((a / range * pi) );
+                different.at<int>(i, j) = aver + (img.at<int>(i, j) - aver) * sina;
+            }
+        }
+        return different;
+
+    }
 
 
-    int faceCheck() {
-        cv::Mat frame, image;
+
+
+
+
+    double getImgAver(cv::Mat img) {
+        int mm = img.rows, nn = img.cols;
+        double sum, aver;
+        sum = 0;
+        for (int i=0; i< mm; i++) {
+            for (int j = 0; j < nn; j++) {
+                sum += img.at<int>(i, j);
+            }
+        }
+        aver = sum/(mm * nn);
+        return aver;
+    }
+
+    //获取图像的方差
+    double getImgVar(cv::Mat img) {
+        int mm = img.rows, nn = img.cols;
+        double aver = getImgAver(img);
+        double var;
+        for (int i=0; i< mm; i++) {
+            for (int j = 0; j < nn; j++) {
+                var += pow((img.at<int>(i, j) - aver), 2);
+            }
+        }
+        var = var / (mm * nn);
+        printf("图像的方差var: %f \n", var);
+        return var;
+    }
+
+    //获取图像的极差
+    double getImgRange(cv::Mat img) {
+        int mm = img.rows, nn = img.cols;
+        double aver = getImgAver(img);
+        int max, min = img.at<int>(0, 0);
+        double var;
+        for (int i=0; i< mm; i++) {
+            for (int j = 0; j < nn; j++) {
+                if (img.at<int>(i, j) > max) {
+                    max = img.at<int>(i, j);
+                }
+                if (img.at<int>(i, j) < min) {
+                    min = img.at<int>(i, j);
+                }
+            }
+        }
+
+        printf("图像的极差range: %d \n", max - min);
+        return max - min;
+    }
+
+    //压缩图像
+    cv::Mat compressImg(cv::Mat img, int mm, int nn) {
+        int M = img.cols, N = img.rows;
+        cv::Mat Feature(mm, nn, CV_32FC1, cv::Scalar::all(0));
+        printf("压缩第一步\n");
+        for (int i = 0; i< M; i++) {
+            for (int j = 0; j < N; j++) {
+                Feature.at<int> (i / (M/nn), j / (N / nn)) = Feature.at<int> (i / (M/mm), j / (N / nn)) + img.at<uchar>(i, j);
+            }
+        }
+
+        printf("图片压缩成功\n");
+        //测试：看看缩小后，图像里面的每个像素值是多少
+        int rate = (M * N) / (mm * nn);
+        printf("压缩倍率为： %d \n", rate);
+        for (int i=0; i< mm; i++) {
+            for (int j = 0; j < nn; j++) {
+                Feature.at<int>(i, j) = Feature.at<int>(i, j) / rate;
+               // if (Feature.at<int>(i, j) > 255) { Feature.at<int>(i, j) = 255; }
+                printf("%d ", Feature.at<int>(i, j));
+            }
+            printf("\n");
+        }
+        return Feature;
+    }
+
+
+
+
+    int faceCheck(cv::Mat image) {
         bool tryflip;
         cv::CascadeClassifier cascade, nestedCascade;
         double scale = 1.3;
@@ -263,14 +448,14 @@ class  ImageHandler {
         }
 
         /* 加载图片 */
-        image = cv::imread(DETECT_IMAGE, 1 );
+        //image = cv::imread(DETECT_IMAGE, 1 );
         if(image.empty())
         {
             std::cout << "Couldn't read iamge" << DETECT_IMAGE  <<  std::endl;
 
         }
 
-        std::cout << "Detecting face(s) in " << DETECT_IMAGE << std::endl;
+        //std::cout << "Detecting face(s) in " << DETECT_IMAGE << std::endl;
 
         /* 检测人脸及眼睛并画出检测到的区域 */
         if( !image.empty() )
@@ -279,8 +464,6 @@ class  ImageHandler {
             cv::waitKey(0);
         }
         return 0;
-
-
     }
 
 };

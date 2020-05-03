@@ -6,7 +6,7 @@ using namespace cv;
 using namespace std;
 
 int main(int argc, const char * argv[]) {
-    Mat face = imread("../imgs/test1.jpeg");
+    Mat face = imread("../imgs/眼镜1.jpeg");
     if (face.empty()) {
         cout << "Error" << endl;
         return -1;
@@ -22,13 +22,8 @@ int main(int argc, const char * argv[]) {
 
     //handler.getFeature(face, t2);
 
-     handler.faceCheck();
+     handler.faceCheck(face);
 
-    //面部识别代码
-    //vector<Point> centers;
-
-    //Mat faceROI = frameGray(face);
-    //vector<Rect> eyes;
     
     return 0;
 }
